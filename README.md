@@ -1,32 +1,7 @@
-# FAKEBOB
-Source code for paper "Who is real Bob? Adversarial Attacks on Speaker Recognition Systems".
+# FAKEBOB Offsets
+Repo containing code for the offset analysis of the Kaldi Speaker Recognition and the Fakebob attack.
 
-Demonstration Website: [FAKEBOB Website](https://sites.google.com/view/fakebob/home "FAKEBOB Website") (including a One-Minute Video Preview)
-
-Our paper has been accepted by [42nd IEEE Symposium on Security and Privacy (**IEEE S&P, Oakland**), 2021](https://www.ieee-security.org/TC/SP2021/program-papers.html).
-
-Paper link [Who is real Bob? Adversarial Attacks on Speaker Recognition Systems](https://arxiv.org/abs/1911.01840).
-
-Cite our paper as follow:
-
-    @INPROCEEDINGS {chen2019real,
-        author = {G. Chen and S. Chen and L. Fan and X. Du and Z. Zhao and F. Song and Y. Liu},
-        booktitle = {2021 2021 IEEE Symposium on Security and Privacy (SP)},
-        title = {Who is Real Bob? Adversarial Attacks on Speaker Recognition Systems},
-        year = {2021},
-        volume = {},
-        issn = {2375-1207},
-        pages = {55-72},
-        keywords = {adversarial-attack;speaker-recognition;speaker-identification;speaker-verification},
-        doi = {10.1109/SP40001.2021.00004},
-        url = {https://doi.ieeecomputersociety.org/10.1109/SP40001.2021.00004},
-        publisher = {IEEE Computer Society},
-        address = {Los Alamitos, CA, USA},
-        month = {may}
-    }
-
-
-## Basic
+## Basics
 You can either use the docker environment (recommended) or follow the manual installation.
 
 ### Docker installation
@@ -128,4 +103,31 @@ To generate adversarial voices on other speaker recognition systems using our at
 
 ### If you have any question, feel free to comment or contact.
 
+
+## Based on Fakebob
+Source code for paper "Who is real Bob? Adversarial Attacks on Speaker Recognition Systems".
+
+Demonstration Website: [FAKEBOB Website](https://sites.google.com/view/fakebob/home "FAKEBOB Website") (including a One-Minute Video Preview)
+
+Our paper has been accepted by [42nd IEEE Symposium on Security and Privacy (**IEEE S&P, Oakland**), 2021](https://www.ieee-security.org/TC/SP2021/program-papers.html).
+
+Paper link [Who is real Bob? Adversarial Attacks on Speaker Recognition Systems](https://arxiv.org/abs/1911.01840).
+
+Cite our paper as follow:
+
+    @INPROCEEDINGS {chen2019real,
+        author = {G. Chen and S. Chen and L. Fan and X. Du and Z. Zhao and F. Song and Y. Liu},
+        booktitle = {2021 2021 IEEE Symposium on Security and Privacy (SP)},
+        title = {Who is Real Bob? Adversarial Attacks on Speaker Recognition Systems},
+        year = {2021},
+        volume = {},
+        issn = {2375-1207},
+        pages = {55-72},
+        keywords = {adversarial-attack;speaker-recognition;speaker-identification;speaker-verification},
+        doi = {10.1109/SP40001.2021.00004},
+        url = {https://doi.ieeecomputersociety.org/10.1109/SP40001.2021.00004},
+        publisher = {IEEE Computer Society},
+        address = {Los Alamitos, CA, USA},
+        month = {may}
+    }
 
