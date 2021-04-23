@@ -11,6 +11,8 @@
 import copy
 import pickle
 import time
+import random
+import os
 
 import numpy as np
 
@@ -20,7 +22,8 @@ class FakeBob(object):
 
     def __init__(self, task, attack_type, model, adver_thresh=0., epsilon=0.002, max_iter=1000, 
                  max_lr=0.001, min_lr=1e-6, samples_per_draw=50, sigma=0.001, momentum=0.9, 
-                 plateau_length=5, plateau_drop=2.):
+                 plateau_length=5, plateau_drop=2., adver_audio_dir=None, offset_training=None,
+                 offset_iters=1000, additional_audio_analysis=None):
 
         self.task = task
         self.attack_type = attack_type
@@ -35,6 +38,10 @@ class FakeBob(object):
         self.momentum = momentum
         self.plateau_length = plateau_length
         self.plateau_drop = plateau_drop
+        self.adver_audio_dir = adver_audio_dir
+        self.offset_training = offset_training
+        self.offset_iters = offset_iters
+        self.additional_audio_analysis = additional_audio_analysis
     
     def estimate_threshold(self, audio, fs=16000, bits_per_sample=16, n_jobs=10, debug=False):
 
@@ -137,7 +144,7 @@ class FakeBob(object):
             iter_outer += 1
     
     def attack(self, audio, checkpoint_path, threshold=0., true=None, target=None, fs=16000, 
-               bits_per_sample=16, n_jobs=10, debug=False):
+               bits_per_sample=16, n_jobs=10, debug=False, spk_id=None, adver_audio_path_dir=None):
         
         # make sure that audio is (N, 1)
         if len(audio.shape) == 1:
@@ -154,7 +161,8 @@ class FakeBob(object):
         """ initial
         """
         adver = copy.deepcopy(audio)
-        grad = 0
+        #grad = 0
+        grad = np.zeros_like(adver)
 
         last_ls = []
 
@@ -165,6 +173,17 @@ class FakeBob(object):
 
         cp_global = []
 
+
+
+        num_offset_samples_used_list = []
+        num_offset_samples = 0
+
+        distances = []
+        adver_losses = []
+        scores = []
+        iterations = []
+        used_times = []
+        lrs = []
         for iter in range(self.max_iter):
 
             start = time.time()
@@ -173,6 +192,28 @@ class FakeBob(object):
             
             # estimate the grad
             pre_grad = copy.deepcopy(grad) 
+
+            if self.offset_training:
+                MAX_OFFSET = 300
+                adver = adver[num_offset_samples:]
+                audio = audio[num_offset_samples:]
+                lower = lower[num_offset_samples:]
+                upper = upper[num_offset_samples:]
+                pre_grad = pre_grad[num_offset_samples:]
+                if len(num_offset_samples_used_list) == MAX_OFFSET:
+                    num_offset_samples_used_list = []
+                while True:
+                    num_offset_samples = int(MAX_OFFSET * random.random())
+                    if num_offset_samples not in num_offset_samples_used_list:
+                        num_offset_samples_used_list.append(num_offset_samples)
+                        break
+                offset = np.zeros(num_offset_samples)[:, np.newaxis]
+                adver = np.concatenate((offset, adver))
+                audio = np.concatenate((offset, audio))
+                lower = np.concatenate((offset - self.epsilon, lower))
+                upper = np.concatenate((offset + self.epsilon, upper))
+                pre_grad = np.concatenate((offset, pre_grad))
+
             loss, grad, adver_loss, score = self.get_grad(adver, fs=fs, bits_per_sample=bits_per_sample, n_jobs=n_jobs, debug=debug)
 
             distance = np.max(np.abs(audio - adver))
@@ -211,12 +252,65 @@ class FakeBob(object):
             cp_local.append(used_time)
 
             cp_global.append(cp_local)
+
+            iterations.append(iter)
+            distances.append(distance)
+            adver_losses.append(adver_loss)
+            scores.append(score)
+            used_times.append(used_time)
+            lrs.append(lr)
+
         
+        training_log_str_to_write = 'iteration, distance, adver_loss, score, used_time, lr\n'
+        for iteration, distance, adver_loss, socre, used_time, lr in zip(iterations, distances, adver_losses, scores, used_times, lrs):
+            training_log_str_to_write += str(iteration) + ', ' + str(distance) + ', ' + str(adver_loss) + ', ' + str(socre) + ', ' + str(used_time) + ', ' + str(lr) + '\n'
+
+        if self.offset_training:
+            output_filename_train_log_csv = 'offset_training_train_log.csv'
+        else:
+            output_filename_train_log_csv = 'normal_train_log.csv'
+
+        ouput_path_train_log = os.path.join(adver_audio_path_dir, output_filename_train_log_csv)
+        with open(ouput_path_train_log, 'w') as f:
+            f.write(training_log_str_to_write)
+
         with open(checkpoint_path, "wb") as writer:
             pickle.dump(cp_global, writer, protocol=-1)
         
         success_flag = 1 if iter < self.max_iter-1 else -1
         adver = (adver * (2 ** (bits_per_sample - 1))).astype(np.int16)
+
+        audio_files_offset_analysis = [adver]
+        if self.additional_audio_analysis:
+            from scipy.io.wavfile import read, write
+            for e in self.additional_audio_analysis:
+
+                audio = (audio * (2 ** (bits_per_sample - 1))).astype(np.int16)
+                audio_files_offset_analysis.append(audio)
+        
+
+        for audio_num, audio in enumerate(audio_files_offset_analysis):
+            offset_scores = []
+            print("audio:", audio.shape)
+            for i in range(self.offset_iters):
+                adver_with_offset = np.concatenate((np.zeros(i)[:, np.newaxis], audio), axis=0)
+                score = self.model.score(adver_with_offset, fs=fs, bits_per_sample=bits_per_sample, n_jobs=n_jobs, debug=debug)
+
+                print("score:", score)
+                offset_scores.append(score)
+
+            if audio_num > 0:
+                filename = 'offset_scores_additional_audio_' + str(audio_num)
+            elif self.offset_training:
+                filename = 'offset_scores_offset_training' 
+            else:
+                filename = 'offset_scores'
+
+            print("adver_audio_path_dir:", adver_audio_path_dir)
+            ouput_path = os.path.join(adver_audio_path_dir, filename)
+            print("ouput_path:", ouput_path)
+            with open(ouput_path, 'w') as f:
+                f.write(str(offset_scores))
         return adver, success_flag
     
     def get_grad(self, audio, fs=16000, bits_per_sample=16, n_jobs=10, debug=False):

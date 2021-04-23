@@ -84,11 +84,16 @@ def load_model(spk_id_list, architecture, task, threshold, id):
 
     return model
 
-def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False):
+def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False, offset_training=False):
 
     audio_names = []
     adver_audio_paths = []
     checkpoint_paths = []
+
+    if offset_training:
+        offset_training_string = 'otrl_True_'
+    else:
+        offset_training_string = ''
 
     if task == CSI:
 
@@ -115,7 +120,7 @@ def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False):
             for audio_name in audio_iter:
 
                 audio_names.append(audio_name)
-                adver_audio_paths.append(os.path.join(os.path.join(adver_audio_dir, spk_id), audio_name))
+                adver_audio_paths.append(os.path.join(os.path.join(adver_audio_dir, spk_id, ), offset_training_string + audio_name))
                 checkpoint_paths.append(os.path.join(os.path.join(checkpoint_dir, spk_id), audio_name.split(".")[0] + ".cp"))
 
                 audio_path = os.path.join(spk_dir, audio_name)
@@ -123,6 +128,7 @@ def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False):
                 audio = audio / (2 ** (bits_per_sample - 1))
                 audio_list.append(audio)
                 true_label_list.append(true_label)
+            print("adver_audio_paths:", adver_audio_paths)
         
         # skip those wrongly classified
         decisions, _ = model.make_decisions(audio_list, fs=fs, bits_per_sample=bits_per_sample, n_jobs=n_jobs, debug=debug)
@@ -250,9 +256,10 @@ def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False):
                 os.makedirs(checkpoint_spk_dir)
             
             for audio_name in audio_iter:
+            #for audio_name in audio_iter[:1]:
 
                 audio_names.append(audio_name)
-                adver_audio_paths.append(os.path.join(os.path.join(adver_audio_dir, spk_id), audio_name))
+                adver_audio_paths.append(os.path.join(os.path.join(adver_audio_dir, spk_id, ), offset_training_string + audio_name))
                 checkpoint_paths.append(os.path.join(os.path.join(checkpoint_dir, spk_id), audio_name.split(".")[0] + ".cp"))
 
                 audio_path = os.path.join(spk_dir, audio_name)
@@ -273,7 +280,7 @@ def loadData(task, attack_type, model, spk_id_list, n_jobs=10, debug=False):
 
 def main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
          epsilon, max_iter, max_lr, min_lr, samples_per_draw, sigma,
-         momentum, plateau_length, plateau_drop, n_jobs, debug):
+         momentum, plateau_length, plateau_drop, n_jobs, debug, offset_training=False, offset_iters=1000, additional_audio_analysis=None):
     
     id = architecture + "-" + task + "-" + attack_type
     global adver_audio_dir
@@ -304,8 +311,9 @@ def main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
     print('------ load data ------')
 
     audio_list, true_label_list, target_label_list, \
-    audio_names, adver_audio_paths, checkpoint_paths = loadData(task, attack_type, model, spk_id_list, n_jobs=n_jobs, debug=debug)
+    audio_names, adver_audio_paths, checkpoint_paths = loadData(task, attack_type, model, spk_id_list, n_jobs=n_jobs, debug=debug, offset_training=offset_training)
     total_cnt = len(audio_list)
+    #print("audio_list:", audio_list)
 
     print('------ load data done, total num: %d ------' %total_cnt)
     
@@ -315,7 +323,7 @@ def main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
 
     fake_bob = FakeBob(task, attack_type, model, adver_thresh=adver_thresh, epsilon=epsilon, max_iter=max_iter,
                          max_lr=max_lr, min_lr=min_lr, samples_per_draw=samples_per_draw, sigma=sigma, momentum=momentum, 
-                         plateau_length=plateau_length, plateau_drop=plateau_drop)
+                         plateau_length=plateau_length, plateau_drop=plateau_drop, adver_audio_dir=adver_audio_dir, offset_training=offset_training, offset_iters=offset_iters, additional_audio_analysis=additional_audio_analysis)
 
     if task == CSI:
 
@@ -379,6 +387,7 @@ def main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
             for audio, audio_name, \
                 adver_audio_path, checkpoint_path in zip(audio_list, audio_names, 
                                                         adver_audio_paths, checkpoint_paths):
+                print("audio_name:", audio_name)
                 
                 print("--- %s, %s, %s, audio name:%s ---" %(architecture, task, attack_type, audio_name))
                 adver_audio, success_flag = fake_bob.attack(audio, checkpoint_path, threshold=threshold_estimated, fs=fs, 
@@ -401,8 +410,10 @@ def main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
                                                     adver_audio_paths, checkpoint_paths):
                 
             print("--- %s, %s, %s, audio name:%s ---" %(architecture, task, attack_type, audio_name))
+            adver_audio_path_dir = os.path.dirname(adver_audio_path)
+            print("adver_audio_path_dir:", adver_audio_path_dir)
             adver_audio, success_flag = fake_bob.attack(audio, checkpoint_path, threshold=threshold_estimated, fs=fs, 
-                                                        bits_per_sample=bits_per_sample, n_jobs=n_jobs, debug=debug)
+                                                        bits_per_sample=bits_per_sample, n_jobs=n_jobs, debug=debug, adver_audio_path_dir=adver_audio_path_dir)
                 
             write(adver_audio_path, fs, adver_audio)
             if success_flag == 1:
@@ -433,10 +444,12 @@ if __name__ == "__main__":
     parser.add_argument("--plateau_drop", "-plateau_drop", default=2.0, type=float)
 
     parser.add_argument("--n_jobs", "-nj", default=10, type=int)
-    # parser.add_argument("--debug", "-debug", default=False, type=bool)
     parser.add_argument("--debug", "-debug", default="f", type=str, choices=["t", "f"]) # "f" for False, "t" for True
 
     parser.add_argument("--threshold", "-thresh", default=0., type=float) # only meaningful for OSI and SV task
+    parser.add_argument('--offset_training', action='store_true', default=False)
+    parser.add_argument("--offset_iters",  default=1000, type=int)
+    parser.add_argument("--additional_audio_analysis", nargs="+", default=None, type=str)
 
     args = parser.parse_args()
 
@@ -459,6 +472,9 @@ if __name__ == "__main__":
     momentum = args.momentum
     plateau_length = args.plateau_length
     plateau_drop = args.plateau_drop
+    offset_training = args.offset_training
+    offset_iters = args.offset_iters
+
 
     n_jobs = args.n_jobs
     debug = args.debug
@@ -471,4 +487,4 @@ if __name__ == "__main__":
 
     main(spk_id_list, architecture, task, threshold, attack_type, adver_thresh,
          epsilon, max_iter, max_lr, min_lr, samples_per_draw, sigma,
-         momentum, plateau_length, plateau_drop, n_jobs, debug)
+         momentum, plateau_length, plateau_drop, n_jobs, debug, offset_training, offset_iters, additional_audio_analysis=args.additional_audio_analysis)
