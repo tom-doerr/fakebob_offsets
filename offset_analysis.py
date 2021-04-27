@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 ## Copyright (C) 2019, Guangke Chen <gkchen.shanghaitech@gmail.com>.
 ## This program is licenced under the BSD 2-Clause licence
