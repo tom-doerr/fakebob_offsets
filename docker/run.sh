@@ -13,7 +13,7 @@ then
     command_to_execute="bash"
 fi
 
-docker run -it --gpus all -v $PWD:/mounted fakebob bash -ic ' \
+docker run -it -v $PWD:/mounted fakebob bash -ic ' \
 export KALDI_ROOT=/kaldi; \
 FAKEBOB_PATH=/mounted; \
 export PATH=$FAKEBOB_PATH/pre-models/utils/:$KALDI_ROOT/tools/openfst/bin:$KALDI_ROOT/tools/sph2pipe_v2.5:$PATH; \
