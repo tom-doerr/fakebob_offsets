@@ -21,6 +21,13 @@ The `test.py` script will show you the baseline performance.
 Run `docker/run.sh` and then `./attackMain.sh` or run `docker/run.sh ./attackMain.sh`.
 You can find details in step nine of the manual installation.
 
+### Analyzing Offset Behaviour
+Run `docker/run.sh ./offset_analysis.py` to analyze the offsets and `plot2.py` to show the results.
+`plot2.py` supports regex expressions to filter the results:
+- `./plot2.py 'adversarial_'` only shows the offset plots for adversarial audio.
+- `./plot2.py 'normal_[0-9]'` shows the results for normal audio. 
+- `./plot2.py 'adversarial_otrl'` shows the offset plots for the adversarial examples that were generated with offset training.
+
 
 ### Manual installation
 #### Note that we have only tested our code on Ubuntu 16.04 system. It should work well as well on other Linux systems. Currently this project does NOT support and use GPU. It is our plan to release GPU version of this project. Stay tuned.
