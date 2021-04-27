@@ -22,7 +22,7 @@ threshold=0.227700 # gmm OSI
 adver_thresh=0.0
 epsilon=0.002
 max_iter=1000
-offset_iters=1000
+offset_iters=0
 
 max_lr=0.001
 min_lr=1e-6
