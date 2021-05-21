@@ -40,7 +40,7 @@ run bash extras/install_mkl.sh
 run apt-get install -y zlib1g-dev automake autoconf unzip sox gfortran libtool subversion python2.7
 run bash extras/check_dependencies.sh
 #run CXX=g++-4.8 bash extras/check_dependencies.sh
-env NUM_CPUS_TO_USE=24
+env NUM_CPUS_TO_USE=4
 #run make CXX=g++-4.8 -j $NUM_CPUS_TO_USE
 
 run make -j $NUM_CPUS_TO_USE
